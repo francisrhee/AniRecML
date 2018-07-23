@@ -1,5 +1,6 @@
 import requests
 import json
+import re
 
 ''' TODO:
 1. Find a query that gets a list of all animes on user's list, and their score/features
@@ -11,49 +12,104 @@ import json
 7. Port to a website using Django?
 '''
 
-# TODO: Change query to pull user data
-query = '''
-query GetAnimeList($userName: String) {
-  MediaListCollection(userName: $userName, type: ANIME) {
-    lists {
-      name
-      entries {
-        score
-        media {
-          title {
-            romaji
-            english
-          }
-          episodes
-          duration
-          genres
-          studios(isMain: true) {
-            nodes {
-              name
+
+
+def queryFeatures():
+    query = '''
+    query GetAnimeList($userName: String) {
+      GenreCollection
+
+      MediaListCollection(userName: $userName, type: ANIME) {
+        lists {
+          name
+          entries {
+            score
+            media {
+              title {
+                romaji
+                english
+              }
+              episodes
+              duration
+              genres
+              studios(isMain: true) {
+                nodes {
+                  name
+                }
+              }
             }
-          }
-          tags {
-            name
-            category
           }
         }
       }
     }
-  }
-}
+    '''
 
-'''
+    # Define our query variables and values that will be used in the query request
+    variables = {
+        "userName": "FrannehR"
+    }
 
-# Define our query variables and values that will be used in the query request
-variables = {
-    "userName": "frhee97"
-}
+    # Make the HTTP Api request
+    response = requests.post(url, json={'query': query, 'variables': variables})
+    responseJSON = json.loads(response.text)
+
+    # Extract relevant features
+    fullGenreList = responseJSON['data']['GenreCollection']
+    lists = responseJSON['data']['MediaListCollection']['lists']
+    lists = [lists[x] for x in range(len(lists)) if bool(re.search('Completed|Dropped', lists[x]['name']))]
+
+    scores = [lists[l]['entries'][x]['score'] for l in range(len(lists)) for x in range(len(lists[l]['entries']))]
+    media = [lists[l]['entries'][x]['media'] for l in range(len(lists)) for x in range(len(lists[l]['entries']))]
+    numEpisodes = [lists[l]['entries'][x]['media']['episodes'] for l in range(len(lists)) for x in
+                   range(len(lists[l]['entries']))]
+    avgEpDuration = [lists[l]['entries'][x]['media']['duration'] for l in range(len(lists)) for x in
+                     range(len(lists[l]['entries']))]
+    genres = [lists[l]['entries'][x]['media']['genres'] for l in range(len(lists)) for x in
+              range(len(lists[l]['entries']))]
+    studios = [lists[l]['entries'][x]['media']['studios']['nodes'] for l in range(len(lists)) for x in
+               range(len(lists[l]['entries']))]
+
+    studiosFormatted = []
+    for i in range(len(studios)):
+        studiosFormatted.append([studios[i][s]['name'] for s in range(len(studios[i]))])
+
+    studioListFull = getStudioListFull()
+
+
+
+# List of all possible studios takes a little more effort to get
+def getStudioListFull():
+    studioList = []
+
+    studioQuery = '''query ($page: Int) {
+                  Page(page: $page) {
+                    pageInfo {
+                      hasNextPage
+                    }
+                    studios {
+                      id
+                      name
+                    }
+                  }
+                }'''
+    pageVariables = {
+        "page": 1
+    }
+
+    while True:
+        studioResponse = requests.post(url, json={'query': studioQuery, 'variables': pageVariables})
+        studioResponseJSON = json.loads(studioResponse.text)
+        studiosOnPage = studioResponseJSON['data']['Page']['studios']
+        studioList.extend([studiosOnPage[s]['name'] for s in range(len(studiosOnPage))])
+
+        pageVariables['page'] += 1
+
+        if(studioResponseJSON['data']['Page']['pageInfo']['hasNextPage'] == False):
+            break
+
+    return studioList
+
+
 
 url = 'https://graphql.anilist.co'
-
-# Make the HTTP Api request
-response = requests.post(url, json={'query': query, 'variables': variables})
-
-responseJSON = json.loads(response.text)
-print(json.dumps(responseJSON, indent=4, sort_keys=True))
-
+queryFeatures()
