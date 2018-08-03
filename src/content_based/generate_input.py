@@ -128,7 +128,7 @@ def combineData(numEpisodes, avgEpDuration, genres, studiosFormatted, genreListF
 
     return dataList
 
-def convertLabels(scores):
+# def convertLabels(scores):
     # Convert all scores to a 5 point system
     # Convert them to a 1/0 system
 
