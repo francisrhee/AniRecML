@@ -1,15 +1,15 @@
 import requests
 import json
 import re
-import numpy as np
-from collabfilt.helper_functions import encodeOneHot
+import pandas as pd
 
 
+url = 'https://graphql.anilist.co'
 def queryData():
+    users = ["FrannehR", "frhee97", "MarioMonkey", "AfterShock42", "Kyle"]
+
     query = '''
     query GetAnimeList($userName: String) {
-      GenreCollection
-
       User(name:$userName) {
         mediaListOptions {
           scoreFormat
@@ -22,18 +22,12 @@ def queryData():
           entries {
             score
             media {
+              id
               title {
                 romaji
                 english
               }
-              episodes
-              duration
-              genres
-              studios(isMain: true) {
-                nodes {
-                  name
-                }
-              }
+              status
             }
           }
         }
@@ -43,89 +37,51 @@ def queryData():
 
     # Define our query variables and values that will be used in the query request
     variables = {
-        "userName": "FrannehR"
+        "userName": None
     }
 
-    # Make the HTTP Api request
-    response = requests.post(url, json={'query': query, 'variables': variables})
-    responseJSON = json.loads(response.text)
+    df = pd.DataFrame(columns=['UserName', 'MediaTitle', 'Score', 'Currently Airing'])
 
-    # Extract relevant features
-    genreListFull = responseJSON['data']['GenreCollection']
-    lists = responseJSON['data']['MediaListCollection']['lists']
-    lists = [lists[x] for x in range(len(lists)) if bool(re.search('Completed|Dropped', lists[x]['name']))]
+    for u in users:
+        temp_df = pd.DataFrame()
+        variables["userName"] = u
+        response = requests.post(url, json={'query': query, 'variables': variables})
+        responseJSON = json.loads(response.text)
 
-    scores = [lists[l]['entries'][x]['score'] for l in range(len(lists)) for x in range(len(lists[l]['entries']))]
-    scoreFormat = responseJSON['data']['User']['mediaListOptions']['scoreFormat']
+        lists = responseJSON['data']['MediaListCollection']['lists']
+        lists = [lists[x] for x in range(len(lists)) if bool(re.search('Completed|Dropped', lists[x]['name']))]
+        scoreFormat = responseJSON['data']['User']['mediaListOptions']['scoreFormat']
+        scores = [lists[l]['entries'][x]['score'] for l in range(len(lists)) for x in range(len(lists[l]['entries']))]
+        mediaTitles = [lists[l]['entries'][x]['media']['title']['romaji'] for l in range(len(lists)) for x in range(len(lists[l]['entries']))]
+        mediaStatus = [lists[l]['entries'][x]['media']['status'] for l in range(len(lists)) for x in range(len(lists[l]['entries']))]
 
-    numEpisodes = [lists[l]['entries'][x]['media']['episodes'] for l in range(len(lists)) for x in
-                   range(len(lists[l]['entries']))]
-    avgEpDuration = [lists[l]['entries'][x]['media']['duration'] for l in range(len(lists)) for x in
-                     range(len(lists[l]['entries']))]
-    genres = [lists[l]['entries'][x]['media']['genres'] for l in range(len(lists)) for x in
-              range(len(lists[l]['entries']))]
-    studios = [lists[l]['entries'][x]['media']['studios']['nodes'] for l in range(len(lists)) for x in
-               range(len(lists[l]['entries']))]
+        # Convert mediaStatus to 1 or 0 based on currently airing
+        mediaStatus = [status == "RELEASING" for status in mediaStatus]
 
-    studiosFormatted = []
-    for i in range(len(studios)):
-        studiosFormatted.append([studios[i][s]['name'] for s in range(len(studios[i]))])
+        # Convert all scores to POINT-10 system for consistency
+        if (scoreFormat == "POINT_100"):
+            scores = [int(score/100) for score in scores]
+        elif (scoreFormat == "POINT_10_DECIMAL"):
+            scores = [int(score) for score in scores]
+        elif (scoreFormat == "POINT_5"):
+            scores = [score*2 for score in scores]
+        elif (scoreFormat == "POINT_3"):
+            scores = [int(score*(10/3)) for score in scores]
 
-    return scores, numEpisodes, avgEpDuration, genres, studiosFormatted, genreListFull
+        # Input into dataframe
+        scores = pd.Series(scores)
+        mediaTitles = pd.Series(mediaTitles)
+        userNameEntries = pd.Series([u for i in range(len(mediaTitles))])
 
+        temp_df['UserName'] = userNameEntries
+        temp_df['MediaTitle'] = mediaTitles
+        temp_df['Score'] = scores
+        temp_df['Currently Airing'] = mediaStatus
 
-# List of all possible studios takes a little more effort to get
-def getStudioListFull():
-    studioList = []
+        df = df.append(temp_df)
 
-    studioQuery = '''query ($page: Int) {
-                  Page(page: $page) {
-                    pageInfo {
-                      hasNextPage
-                    }
-                    studios {
-                      id
-                      name
-                    }
-                  }
-                }'''
-    pageVariables = {
-        "page": 1
-    }
-
-    while True:
-        studioResponse = requests.post(url, json={'query': studioQuery, 'variables': pageVariables})
-        studioResponseJSON = json.loads(studioResponse.text)
-        studiosOnPage = studioResponseJSON['data']['Page']['studios']
-        studioList.extend([studiosOnPage[s]['name'] for s in range(len(studiosOnPage))])
-
-        pageVariables['page'] += 1
-
-        if (studioResponseJSON['data']['Page']['pageInfo']['hasNextPage'] == False):
-            break
-
-    return studioList
+    return df
 
 
-def combineData(numEpisodes, avgEpDuration, genres, studiosFormatted, genreListFull, studioListFull):
-    # Encode genres and studios to one-hot and combine data
-    genresOneHot = encodeOneHot(genreListFull, genres)
-    studiosOneHot = encodeOneHot(studioListFull, studiosFormatted)
-
-    dataList = np.vstack((numEpisodes, avgEpDuration)).T
-    dataList = list(np.hstack((dataList, genresOneHot, studiosOneHot)))
-
-    return dataList
-
-
-def convertLabels(scores):
-
-
-# Convert all scores to a 5 point system
-# Convert them to a 1/0 system
-
-
-url = 'https://graphql.anilist.co'
-scores, numEpisodes, avgEpDuration, genres, studiosFormatted, genreListFull = queryData()
-studioListFull = getStudioListFull()
-inputData = combineData(numEpisodes, avgEpDuration, genres, studiosFormatted, genreListFull, studioListFull)
+df = queryData()
+df
