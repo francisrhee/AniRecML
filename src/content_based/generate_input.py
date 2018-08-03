@@ -2,7 +2,7 @@ import requests
 import json
 import re
 import numpy as np
-from helper_functions import encodeOneHot
+from content_based.helper_functions import encodeOneHot
 
 ''' TODO:
 1. Find a query that gets a list of all animes on user's list, and their score/features
@@ -14,10 +14,16 @@ from helper_functions import encodeOneHot
 7. Port to a website using Django?
 '''
 
-def queryFeatures():
+def queryData():
     query = '''
     query GetAnimeList($userName: String) {
       GenreCollection
+      
+      User(name:$userName) {
+        mediaListOptions {
+          scoreFormat
+        }
+      }
 
       MediaListCollection(userName: $userName, type: ANIME) {
         lists {
@@ -59,6 +65,10 @@ def queryFeatures():
     lists = [lists[x] for x in range(len(lists)) if bool(re.search('Completed|Dropped', lists[x]['name']))]
 
     scores = [lists[l]['entries'][x]['score'] for l in range(len(lists)) for x in range(len(lists[l]['entries']))]
+    scoreFormat = responseJSON['data']['User']['mediaListOptions']['scoreFormat']
+
+
+
     numEpisodes = [lists[l]['entries'][x]['media']['episodes'] for l in range(len(lists)) for x in
                    range(len(lists[l]['entries']))]
     avgEpDuration = [lists[l]['entries'][x]['media']['duration'] for l in range(len(lists)) for x in
@@ -107,19 +117,25 @@ def getStudioListFull():
 
     return studioList
 
-def combineData(scores, numEpisodes, avgEpDuration, genres, studiosFormatted, genreListFull, studioListFull):
+def combineData(numEpisodes, avgEpDuration, genres, studiosFormatted, genreListFull, studioListFull):
 
     # Encode genres and studios to one-hot and combine data
     genresOneHot = encodeOneHot(genreListFull, genres)
     studiosOneHot = encodeOneHot(studioListFull, studiosFormatted)
 
-    dataList = np.vstack((scores, numEpisodes, avgEpDuration)).T
+    dataList = np.vstack((numEpisodes, avgEpDuration)).T
     dataList = list(np.hstack((dataList, genresOneHot, studiosOneHot)))
 
     return dataList
 
+def convertLabels(scores):
+    # Convert all scores to a 5 point system
+    # Convert them to a 1/0 system
+
+
+
 
 url = 'https://graphql.anilist.co'
-scores, numEpisodes, avgEpDuration, genres, studiosFormatted, genreListFull = queryFeatures()
+scores, numEpisodes, avgEpDuration, genres, studiosFormatted, genreListFull = queryData()
 studioListFull = getStudioListFull()
-inputData = combineData(scores, numEpisodes, avgEpDuration, genres, studiosFormatted, genreListFull, studioListFull)
+inputData = combineData(numEpisodes, avgEpDuration, genres, studiosFormatted, genreListFull, studioListFull)
