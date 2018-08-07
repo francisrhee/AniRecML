@@ -40,7 +40,7 @@ def queryData():
         "userName": None
     }
 
-    df = pd.DataFrame(columns=['UserName', 'MediaTitle', 'Score', 'Currently Airing'])
+    df = pd.DataFrame(columns=['UserName', 'MediaTitle', 'Score', 'CurrentlyAiring'])
 
     for u in users:
         temp_df = pd.DataFrame()
@@ -76,7 +76,7 @@ def queryData():
         temp_df['UserName'] = userNameEntries
         temp_df['MediaTitle'] = mediaTitles
         temp_df['Score'] = scores
-        temp_df['Currently Airing'] = mediaStatus
+        temp_df['CurrentlyAiring'] = mediaStatus
 
         df = df.append(temp_df)
 
