@@ -7,22 +7,13 @@ from surprise import accuracy
 from surprise import NormalPredictor
 from surprise.model_selection import cross_validate
 from surprise.model_selection import train_test_split
+from surprise.model_selection import GridSearchCV
+
 from collabfilt.input import queryData
+
 
 def get_top_n(predictions, n=10):
     # TODO: Make this only for one user and exclude already seen shows
-    '''Return the top-N recommendation for each user from a set of predictions.
-
-    Args:
-        predictions(list of Prediction objects): The list of predictions, as
-            returned by the test method of an algorithm.
-        n(int): The number of recommendation to output for each user. Default
-            is 10.
-
-    Returns:
-    A dict where keys are user (raw) ids and values are lists of tuples:
-        [(raw item id, rating estimation), ...] of size n.
-    '''
 
     # First map the predictions to each user.
     top_n = defaultdict(list)
@@ -42,6 +33,17 @@ def get_top_n(predictions, n=10):
 df = queryData()
 reader = Reader(rating_scale=(1, 10))
 data = Dataset.load_from_df(df[['UserName', 'MediaTitle', 'Score']], reader=reader)
+
+# # Tune params
+# param_grid = {'n_epochs': [5, 10], 'lr_all': [0.002, 0.005],
+#               'reg_all': [0.4, 0.6]}
+# gs = GridSearchCV(SVD, param_grid, measures=['rmse', 'mae'], cv=3) # Selects best param out of given param_grid
+# gs.fit(data)
+# print(gs.best_score['rmse'])
+# print(gs.best_params['rmse'])
+# algo = gs.best_estimator['rmse']
+# algo.fit(data.build_full_trainset())
+# results_df = pd.DataFrame.from_dict(gs.cv_results)
 
 trainset, testset = train_test_split(data, test_size=.25)
 
