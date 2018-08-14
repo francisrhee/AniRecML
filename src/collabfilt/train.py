@@ -9,10 +9,10 @@ from surprise.model_selection import cross_validate
 from surprise.model_selection import train_test_split
 from surprise.model_selection import GridSearchCV
 
-from collabfilt.input import queryData
+from collabfilt.input import getData
 
 
-def get_top_n(predictions, n=10):
+def get_top_n(user, predictions, n=10):
     # TODO: Make this only for one user and exclude already seen shows
 
     # First map the predictions to each user.
@@ -25,41 +25,40 @@ def get_top_n(predictions, n=10):
         user_ratings.sort(key=lambda x: x[1], reverse=True)
         top_n[uid] = user_ratings[:n]
 
-    return top_n
+    return top_n[user]
 
+def train(user):
+    # Get data
+    df = getData(user)
+    reader = Reader(rating_scale=(1, 10))
+    data = Dataset.load_from_df(df[['UserName', 'MediaTitle', 'Score']], reader=reader)
 
+    # # Tune params
+    # param_grid = {'n_epochs': [5, 10], 'lr_all': [0.002, 0.005],
+    #               'reg_all': [0.4, 0.6]}
+    # gs = GridSearchCV(SVD, param_grid, measures=['rmse', 'mae'], cv=3) # Selects best param out of given param_grid
+    # gs.fit(data)
+    # print(gs.best_score['rmse'])
+    # print(gs.best_params['rmse'])
+    # algo = gs.best_estimator['rmse']
+    # algo.fit(data.build_full_trainset())
+    # results_df = pd.DataFrame.from_dict(gs.cv_results)
 
-# Get data
-df = queryData()
-reader = Reader(rating_scale=(1, 10))
-data = Dataset.load_from_df(df[['UserName', 'MediaTitle', 'Score']], reader=reader)
+    trainset, testset = train_test_split(data, test_size=.25)
 
-# # Tune params
-# param_grid = {'n_epochs': [5, 10], 'lr_all': [0.002, 0.005],
-#               'reg_all': [0.4, 0.6]}
-# gs = GridSearchCV(SVD, param_grid, measures=['rmse', 'mae'], cv=3) # Selects best param out of given param_grid
-# gs.fit(data)
-# print(gs.best_score['rmse'])
-# print(gs.best_params['rmse'])
-# algo = gs.best_estimator['rmse']
-# algo.fit(data.build_full_trainset())
-# results_df = pd.DataFrame.from_dict(gs.cv_results)
+    # Train
+    algo = SVD()
+    algo.fit(trainset)
+    predictions = algo.test(testset)
 
-trainset, testset = train_test_split(data, test_size=.25)
+    top_n = get_top_n(user, predictions, n=10)
 
-# Train
-algo = SVD()
-algo.fit(trainset)
-predictions = algo.test(testset)
+    # Print the recommended items for each user
+    for uid, user_ratings in top_n.items():
+        print(uid, [iid for (iid, _) in user_ratings])
 
-top_n = get_top_n(predictions, n=10)
+    # Metrics
+    # accuracy.rmse(predictions)
+    # cross_validate(NormalPredictor(), data, cv=2, verbose=True)
 
-# Print the recommended items for each user
-for uid, user_ratings in top_n.items():
-    print(uid, [iid for (iid, _) in user_ratings])
-
-# Metrics
-# accuracy.rmse(predictions)
-# cross_validate(NormalPredictor(), data, cv=2, verbose=True)
-
-
+train("FrannehR")
