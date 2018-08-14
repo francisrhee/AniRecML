@@ -13,7 +13,7 @@ from collabfilt.input import getData
 
 
 def get_top_n(user, predictions, n=10):
-    # TODO: Make this only for one user and exclude already seen shows
+    # TODO: Make this only for currently airing shows
 
     # First map the predictions to each user.
     top_n = defaultdict(list)
@@ -54,8 +54,8 @@ def train(user):
     top_n = get_top_n(user, predictions, n=10)
 
     # Print the recommended items for each user
-    for uid, user_ratings in top_n.items():
-        print(uid, [iid for (iid, _) in user_ratings])
+    for i in range(len(top_n)):
+        print(top_n[i][0])
 
     # Metrics
     # accuracy.rmse(predictions)
