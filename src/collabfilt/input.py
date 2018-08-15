@@ -10,6 +10,8 @@ import time
 url = 'https://graphql.anilist.co'
 
 def queryUsers():
+    maxPage = 10
+
     userQuery = '''
     query GetUserNames($page: Int) { 
       Page(page: $page) {
@@ -27,16 +29,31 @@ def queryUsers():
     }
     '''
 
-    pageNum = randint(0, 3400) # Approx. 3400 pages with 50 users each, grab a random page
-    print("Page: {}".format(pageNum))
+    # pageNum = randint(0, 3400) # Approx. 3400 pages with 50 users each, grab a random page
+    # print("Page: {}".format(pageNum))
     userVariables = {
-        "page": pageNum
+        "page": 1 # pageNum
     }
 
-    response = requests.post(url, json={'query': userQuery, 'variables': userVariables})
-    responseJSON = json.loads(response.text)
-    users = responseJSON['data']['Page']['users']
-    users = [users[u]['name'] for u in range(len(users))]
+    users = []
+    while (True):
+        print("Page: {}".format(userVariables['page']))
+
+        try:
+            response = requests.post(url, json={'query': userQuery, 'variables': userVariables})
+            responseJSON = json.loads(response.text)
+            users.extend([responseJSON['data']['Page']['users'][u]['name'] for u in range(len(responseJSON['data']['Page']['users']))]) # Add users in current page
+            hasNextPage = responseJSON['data']['Page']['pageInfo']['hasNextPage']
+
+            if (hasNextPage == False or userVariables['page'] >= maxPage):
+                break
+
+            userVariables['page'] += 1
+        except TypeError:
+            print("Calls being made too quickly. Waiting 60s. Page: {}".format(userVariables['page']))
+            time.sleep(60)
+            print("Continuing.")
+            continue
 
     return users
 
@@ -76,7 +93,8 @@ def queryData(users):
 
     df = pd.DataFrame(columns=['UserName', 'MediaTitle', 'Score', 'CurrentlyAiring'])
 
-    for u in users:
+    for i, u in enumerate(users):
+        print("User #{}, {} remaining".format(i, len(users) - i))
         temp_df = pd.DataFrame()
         variables["userName"] = u
 
@@ -114,20 +132,22 @@ def queryData(users):
             temp_df['Score'] = scores
             temp_df['CurrentlyAiring'] = mediaStatus
 
+            # Remove entries with no score
+            temp_df = temp_df[temp_df.Score != 0]
+
             df = df.append(temp_df)
 
         except TypeError:
             print("Calls being made too quickly. Waiting 60s. User: {}".format(u))
             time.sleep(60)
+            print("Continuing.")
             continue
 
     return df
-
-
-# users = ["FrannehR", "frhee97", "MarioMonkey", "AfterShock42", "Kyle"]
 
 def getData(user):
     users = queryUsers()
     users.insert(0, user)
     df = queryData(users)
+    df.to_csv('data.csv')
     return df
