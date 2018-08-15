@@ -12,13 +12,12 @@ from surprise.model_selection import GridSearchCV
 from collabfilt.input import getData
 
 
-def get_top_n(user, predictions, n=10):
-    # TODO: Make this only for currently airing shows
-
+def get_top_n(df, user, predictions, n=10):
     # First map the predictions to each user.
     top_n = defaultdict(list)
     for uid, iid, true_r, est, _ in predictions:
-        top_n[uid].append((iid, est))
+        if (df.loc[df['MediaTitle'] == iid]['CurrentlyAiring'].iloc[0] == True):
+            top_n[uid].append((iid, est))
 
     # Then sort the predictions for each user and retrieve the k highest ones.
     for uid, user_ratings in top_n.items():
@@ -51,7 +50,7 @@ def train(user):
     algo.fit(trainset)
     predictions = algo.test(testset)
 
-    top_n = get_top_n(user, predictions, n=10)
+    top_n = get_top_n(df, user, predictions, n=10)
 
     # Print the recommended items for each user
     for i in range(len(top_n)):
