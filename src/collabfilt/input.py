@@ -10,7 +10,7 @@ import time
 url = 'https://graphql.anilist.co'
 
 def queryUsers():
-    maxPage = 10
+    maxPage = 5
 
     userQuery = '''
     query GetUserNames($page: Int) { 
@@ -79,6 +79,12 @@ def queryData(users):
                 english
               }
               status
+              startDate {
+                year
+                month
+                day
+              }
+              season
             }
           }
         }
@@ -91,10 +97,10 @@ def queryData(users):
         "userName": None
     }
 
-    df = pd.DataFrame(columns=['UserName', 'MediaTitle', 'Score', 'CurrentlyAiring'])
+    df = pd.DataFrame(columns=['UserName', 'MediaTitle', 'Score', 'CurrentlyAiring', 'Season', 'Year'])
 
     for i, u in enumerate(users):
-        print("User #{}, {} remaining".format(i, len(users) - i))
+        print("User #{}, {} remaining".format(i+1, len(users) - i - 1))
         temp_df = pd.DataFrame()
         variables["userName"] = u
 
@@ -108,6 +114,10 @@ def queryData(users):
             scores = [lists[l]['entries'][x]['score'] for l in range(len(lists)) for x in range(len(lists[l]['entries']))]
             mediaTitles = [lists[l]['entries'][x]['media']['title']['romaji'] for l in range(len(lists)) for x in range(len(lists[l]['entries']))]
             mediaStatus = [lists[l]['entries'][x]['media']['status'] for l in range(len(lists)) for x in range(len(lists[l]['entries']))]
+            seasons = [lists[l]['entries'][x]['media']['season'] for l in range(len(lists)) for x in range(len(lists[l]['entries']))]
+            seasons = ['NO_SEASON' if s is None else s for s in seasons]
+            years = [lists[l]['entries'][x]['media']['startDate']['year'] for l in range(len(lists)) for x in range(len(lists[l]['entries']))]
+            # season_years = [s + "-" + y for s,y in zip(seasons, years)]
 
             # Convert mediaStatus to 1 or 0 based on currently airing
             mediaStatus = [status == "RELEASING" for status in mediaStatus]
@@ -131,6 +141,8 @@ def queryData(users):
             temp_df['MediaTitle'] = mediaTitles
             temp_df['Score'] = scores
             temp_df['CurrentlyAiring'] = mediaStatus
+            temp_df['Season'] = seasons
+            temp_df['Year'] = years
 
             # Remove entries with no score
             temp_df = temp_df[temp_df.Score != 0]
@@ -147,7 +159,10 @@ def queryData(users):
 
 def getData(user):
     users = queryUsers()
+    # users = ['Kyle', 'Demi95', 'Jare4lopez']
     users.insert(0, user)
     df = queryData(users)
-    df.to_csv('data.csv')
+    # df.to_csv('data.csv')
     return df
+
+getData("FrannehR")
