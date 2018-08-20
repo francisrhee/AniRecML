@@ -9,8 +9,9 @@ import time
 
 url = 'https://graphql.anilist.co'
 
+
 def queryUsers():
-    maxPage = 5
+    maxPage = 40
 
     userQuery = '''
     query GetUserNames($page: Int) { 
@@ -158,11 +159,14 @@ def queryData(users):
     return df
 
 def getData(user):
+
     users = queryUsers()
     # users = ['Kyle', 'Demi95', 'Jare4lopez']
     users.insert(0, user)
     df = queryData(users)
-    # df.to_csv('data.csv')
+    df.to_csv('data_2k.csv')
+
+
     return df
 
-getData("FrannehR")
+# getData("FrannehR")
