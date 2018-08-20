@@ -62,9 +62,6 @@ def train(user):
     data = Dataset.load_from_df(df[['UserName', 'MediaTitle', 'Score']], reader=reader)
 
 
-
-
-
     # # Tune params
     # param_grid = {'n_epochs': [5, 10], 'lr_all': [0.002, 0.005],
     #               'reg_all': [0.4, 0.6]}
@@ -76,15 +73,14 @@ def train(user):
     # algo.fit(data.build_full_trainset())
     # results_df = pd.DataFrame.from_dict(gs.cv_results)
 
-    # trainset, testset = train_test_split(data, test_size=.25) # Predictions doesn't predict everything. Try not splitting train and test sets?
     trainset = data.build_full_trainset()
 
     # Train
     algo = SVD()
     algo.fit(trainset)
 
-    # TODO: Make testset only include the inputted user
     testset = trainset.build_anti_testset()
+    testset = [x for x in testset if x[0] == user] # Only look for predictions in the user's list
     predictions = algo.test(testset)
 
     top_n = get_top_n(df, user, predictions, n=10)
