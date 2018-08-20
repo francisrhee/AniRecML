@@ -9,7 +9,7 @@ from surprise.model_selection import cross_validate
 from surprise.model_selection import train_test_split
 from surprise.model_selection import GridSearchCV
 import pandas as pd
-# from collabfilt.input import getData
+from collabfilt.input import getData
 from datetime import date, datetime
 
 def get_top_n(df, user, predictions, n=5):
@@ -25,7 +25,7 @@ def get_top_n(df, user, predictions, n=5):
         if(counter % 1000 == 0):
             print(counter)
         # If started in current year and is currently airing
-        if (df.loc[df['MediaTitle'] == iid]['CurrentlyAiring'].iloc[0] == True and df.loc[df['MediaTitle'] == iid]['Year'].iloc[0] == year):
+        if (df.loc[df['MediaTitle'] == iid]['CurrentlyAiring'].iloc[0] == True and abs(df.loc[df['MediaTitle'] == iid]['Year'].iloc[0] - year) <= 1):
             top_n[uid].append((iid, est))
 
     # Then sort the predictions for each user and retrieve the k highest ones.
@@ -57,7 +57,7 @@ def get_season(now):
 def train(user):
     # Get data
     # df = getData(user)
-    df = pd.read_csv("C:/Users/francis/PycharmProjects/AniRecML/src/collabfilt/data.csv")
+    df = pd.read_csv("C:/Users/francis/PycharmProjects/AniRecML/src/collabfilt/data_2k.csv")
     reader = Reader(rating_scale=(1, 10))
     data = Dataset.load_from_df(df[['UserName', 'MediaTitle', 'Score']], reader=reader)
 
@@ -83,10 +83,11 @@ def train(user):
     algo = SVD()
     algo.fit(trainset)
 
+    # TODO: Make testset only include the inputted user
     testset = trainset.build_anti_testset()
     predictions = algo.test(testset)
 
-    top_n = get_top_n(df, user, predictions, n=5)
+    top_n = get_top_n(df, user, predictions, n=10)
 
     # Print the recommended items for each user
     for i in range(len(top_n)):
