@@ -9,7 +9,7 @@ AniList API: https://github.com/AniList/ApiV2-GraphQL-Docs
 Surprise: http://surpriselib.com/
 
 ## Analysis
-I wanted to know about the efficiencies of various algorithms provided in the library, so I did some analysis using sample data (1000 users).
+I wanted to know about the efficiencies of various algorithms provided in the library, so I did some analysis using sample data (n=2000 users).
 
 The following results are average metrics over 3 trials, featuring both memory-based (KNN) and model-based algorithms.
 
